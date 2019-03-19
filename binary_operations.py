@@ -53,6 +53,10 @@ class Binary():
     def CombineStringMethods(self,F1,F2):
         return self.__StringMethodCombiner(F1,F2)
     
+    def Operation(self):
+        return self.__Op
+    
+    
 """ Binary operations """ 
 def call(F1,F2):
     def Output(x):
@@ -138,3 +142,7 @@ Sub         =       Binary(sub,Ssub)
 TrueDiv     =       Binary(truediv,Struediv)
 Pow         =       Binary(power,Spower)
 RPow        =       Binary(rpower,Srpower)
+
+
+#def Test():
+#    print("Test")

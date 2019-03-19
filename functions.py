@@ -8,383 +8,626 @@ Created on Fri Mar 15 09:33:44 2019
 Solve classical equations of motion using Scipy
 """
 
-
+from numbers import *
 from scipy import *
-from matplotlib.pyplot import *
+#from matplotlib.pyplot import *
+from .binary_operations import *
+#from . import cleanup_rules 
+#from .cleanup_rules import *
+import sys 
 
-## First test: Harmonic Oscillator
+Module = sys.modules[__name__]
 
-omega = 1
-#
-#class Hamiltonian():
-#    def __init__(self,Function,PoissonBracketMatrix):
-#            self.__Function = Function
-#            self.__PB = PoissonBracketMatrix
-#            self.__Nvariables = shape(PoissonBracketMatrix)[0]
-#            
-#    def __call__(Argument):
-#        return self.__Function(Argument)
-#    
-#
-#    def Gen_EOM(self):
-#        """Return F(S,t), such that \dot S(t) = F(S,t)
-#        """
-#        
-#        F = self.__Function
-#        
-#        Output=zeros((self.__Nvariables))
-#        for n in range(0,self.__Nvariables):
-#            for m in range(0,self.__Nvariables):
-#                
-#                Output[n]+=Derivative(Func,m)*self.__PB[n,m]
-class BaseFunction():
-    """ Abstract function""" 
-    def __init__(self,Input):
-        if not callable(Input):
-
-            def Function(*Arg):
-                return Input
-        else:
-            Function = Input
-            
-        self.__Func=Function
-
-
-    def __mul__(self,OtherFunc):
-        def OutFunc(*Arg):
-            return self(x)*AddedFunc(x)
-        
-        return MyFunc(OutFunc)
-        
-    def __call__(self,*Arg):
-        return self.__Func(*Arg)        
-    
-    def __add__(self,AddedFunc):
-        def OutFunc(*Arg):
-            F1 = self.__Func
-            F2 = AddedFunc.GetFunction()
-            return F1(*Arg)+F2(*Arg)
-        
-        return Function(OutFunc)
-    
-    def __radd__(self,X):
-        return X+self
-    
-    def __rmul__(self,X):
-        return X*self
-
-    def GetFunction(self):
-        """Return ordinary function associated with abstract function"""
-    
-        
-        return self.__Func
-    
-
-
-#    def __call__(self,Argument):
-
-        
-# order: term, factor, application
-class Operation():
-    def __init__(self,Operation,LeftString,RightString):
-        
-        self.__Op = Operation
-        
-        self.__LeftString = LeftString
-        self.__RightString = RightString 
-        
-    def __str__(self):
-        return f"Operation: Op(f,g) = f{self.__LeftString}(g){self.__RightString}" 
-    
-        
-    def __repr__(self):
-        return self.__str__()
-    
-    def __call__(self,*Args):
-        return self.__Op(*Args)
-    
-    def LeftString(self):
-        return self.__LeftString
-    
-    def RightString(self):
-        return self.__RightString
-    
-         
-
-
-""" Binary operations """ 
-def call(F1,F2):
-    def Output(x):
-        return F1(F2(x))
-    
-    return Output
-
-Call = Operation(call,"","")
-
-
-
-class Binary():
-    def __init__(self,Operation,String):
-        self.__Op= Operation
+# =============================================================================
+# Function class 
+# =============================================================================
 
 class Function():
-    
+    def __init__(self,F1,F2,Op):
+        
+        F1.CleanUp()
+        F2.CleanUp()
+        
+        self.__F1 = F1
+        self.__F2 = F2
+        self.__Op = Op
 
-    def __init__(self,*Func):
-        self.__FuncList=[Func]
-        self.__OperationList=[Call]
-        self.__LeftString = self.LeftString()
-        self.__RightString = self.RightString()
+        self.__Depth = max(F1.Depth(),F2.Depth())+1
+        
+        self.__Atomic = False
 
-    def ReturnFunction(self):
+        self.__Function = None
         
-        FL=self.FuncList()
-        OpList=self.OperationList()
-        N = len(OpList)
+        self.__bases__=(Function,)
         
+        self.Compile()
         
-        def OutputFunction(x):
-            return x 
+        self.__StringMethod= Op.CombineStringMethods(F1.StringMethod(),F2.StringMethod())
+        self.__StringMethodDefined = bool(F1.StringMethodDefined()*F2.StringMethodDefined())
         
-        for n in range(0,N):
-            F=FL[n]
-            Op=OpList[n]
-            OutputFunction=Op(F,OutputFunction)            
-    
-        return OutputFunction
-    
-    def FuncList(self):
-        return self.__FuncList
-    
-    def OperationList(self):
-        return self.__OperationList   
-    
-    def SetLists(self,FuncList,OpList):
-        self.__FuncList=FuncList
-        self.__OperationList=OpList
+        self.__DerivativeDefined = bool(F1.DerivativeDefined()*F2.DerivativeDefined())
+        
 
-    def __call__(self,Arg):
-        if type(Arg)==Function:
-            Output=Function(ID)
-            
-            FL1 = Arg.FuncList()
-            OL1 = Arg.OperationList()
-            
-            FL2 = self.FuncList()
-            OL2 = self.OperationList()
-            
-            FL3 = FL1 + FL2 
-            OL3 = OL1 + OL2 
-            
-            
-            Output.SetLists(FL3,OL3)
-            
-            return Output
+        self.CleanUp()
+
+    def Depth(self):
+        return self.__Depth
+    
+    def Operation(self):
+        return self.__Op
+    
+    def IsAtomic(self):
+        return self.__Atomic 
+
+    def Compile(self):
+        """ Generate callable function """
+        if self.IsAtomic():
+            f=self.__F1.F()
         
-        elif type(Arg)==AtomicFunction:
-            Output = Function(ID)
-           
-            FL1 = [Arg]
-            OL1 = [Call]
-            
-            FL2 = self.FuncList()
-            OL2 = self.OperationList()
-            
-            FL3 = FL1 + FL2 
-            OL3 = OL1 + OL2 
-          
-            Output.SetLists(FL3,OL3)
-            
-            return Output
-                                
         else:
-            F=self.ReturnFunction()
-            return F(Arg)
-        
-##        
-#    def __str__(self):
-#        
-#        
-#        
-#        return "Hej"
-    def RightString(self):
-        
-        FL = self.FuncList()
-        OL = self.OperationList()
-        
-        String=""
-        for n in range(0,len(self.__FuncList)):
-
             
-#            al = FL[n].LeftString()
-
-            a= FL[n].RightString()
-
-#            aleft = FL[n].LeftString()
-
-#            oleft= OL[n].LeftString()
-            o = OL[n].RightString()
+            Op = self.__Op
+            F1 = self.__F1
+            F2 = self.__F2
             
-            String = f"{String}({o}{a}"
-        
-        return String
-          
-    
-    def LeftString(self):
-        String = ""
-        FL = self.FuncList()
-        OL = self.OperationList()
-        
-        for n in range(0,len(self.__FuncList)):
-
+            f1 = F1.F()
+            f2 = F2.F()
             
-#            al = FL[n].LeftString()
-
-            print(FL[n])
-            a = FL[n].LeftString()
-
-            o= OL[n].LeftString()
+            f = Op(f1,f2)
+        
+        self.__Function = f
+        self.__Compiled = True
+        
+    def IsCompiled(self):
+        return self.__Compiled 
+    
+    def F(self):
+        """ Return callable function """
+        if not self.IsCompiled():
+            self.Compile()
             
-            String = f"{a}{o}("
-        
-        return String
-    
-    def __str__(self):
-        
-        String = self.LeftString()+"x"+self.RightString()
-        
-    def __repr__(self):
-        return self.__str__()
-
-#        if type(Argument)==Function
-class AtomicFunction(Function):
-    def __init__(self,Function,LeftString,RightString):
-        self.__LeftString=LeftString
-        self.__RightString=RightString
-        self._Function__FuncList = []
-        self._Function__OperationList = []
-        self.__Function = Function 
-        
-
-    def __str__(self):
-        return f"Atomic function: f(x) = {self.__LeftString}(x){self.__RightString}" 
-        
-    def __repr__(self):
-        return self.__str__()
-    
-    def LeftString(self):
-        return self.__LeftString
-    
-    def RightString(self):
-        return self.__RightString
-    
-
-    def ReturnFunction(self):
         return self.__Function
-
-    def __call__(self,Arg)
-        if type(Arg)==Function:
-            Output=Function(ID)
-            
-            FL1 = Arg.FuncList()
-            OL1 = Arg.OperationList()
-            
-            FL2 = self.FuncList()
-            OL2 = self.OperationList()
-            
-            FL3 = FL1 + FL2 
-            OL3 = OL1 + OL2 
-            
-            
-            Output.SetLists(FL3,OL3)
-            
-            return Output
-        
-        elif type(Arg)==AtomicFunction:
-            Output = Function(ID)
-           
-            FL1 = [Arg]
-            OL1 = [Call]
-            
-            FL2 = self.FuncList()
-            OL2 = self.OperationList()
-            
-            FL3 = FL1 + FL2 
-            OL3 = OL1 + OL2 
-          
-            Output.SetLists(FL3,OL3)
-            
-            return Output
-                                
-        else:
-            F=self.ReturnFunction()
-            return F(Arg)
-        
-        
-#    def __call__(self,Arg):
-
-#        return self.Function()(Arg)
-
-def Id(x):
-    return x 
-
-ID = AtomicFunction(Id,"","")
-
-def Square(x):
-    return x**2
-
-
-def f(x):
-    return x**2 
-
-SQ=AtomicFunction(Square,"","^2")
-
-F=SQ
-#A= F.ReturnFunction()
-G=F(F)
-
-#
-#class MyFunc():
-#
-#    
-#class PowerSeries(MyFunc):
-#    def __init__(self,Input):
-#        
-#        
-#def f(x,y):
-#    return x**2+y
-#
-#def g(x):
-#    return 2
-#
-#c=4
-#F=MyFunc(f)
-#G=MyFunc(c)
-#
-#
-#Y=F(1,2)
-#print(Y)
-#
-#K = F+G
-
-#print(K(4,3))
-#def Derivative(Func,)        
-#def H0(Args):
-#    x=Args[0]
-#    p=Args[1]
-#    Out = omega*0.5*(x**2+p**2)
-#    
-#    return Out
-#
-#PBM = array([[0,1],[-1,0]])
-#
-#H=Hamiltonian(H0,PBM)
-
-#class PoissonBracket(array):
-#    def __init__(self,InputArray):
-#        """Inputarray: array of functions"""
-#        
-#        
-#def gen_EOM(Hamiltonian):
-#    
     
+    def F1(self):
+        return self.__F1
+    
+    def F2(self):
+        return self.__F2 
+ 
+# =============================================================================
+# String representation
+# =============================================================================
+    def StringMethod(self):
+        if self.StringMethodDefined():
+            return self.__StringMethod
+        else:
+            raise ValueError("String name for function is not defined")
+
+    def StringMethodDefined(self):
+        return self.__StringMethodDefined
+    
+    def __repr__(self):
+        return("function f(x) = "+self._Function__StringMethod('x'))
+        
+    def __str__(self):
+        return(self._Function__StringMethod('x'))   
+        
+# =============================================================================
+# Cleaning up method        
+# =============================================================================
+#        
+    def CleanUp(self):
+        
+        x = self
+        y=0
+        
+        while y!=x:
+            y=x
+            x=cleanup(x)
+
+        self.__dict__.update(x.__dict__)
+        self.__class__ = x.__class__
+        
+  
+              
+        
+        
+# =============================================================================
+# Derivative 
+# =============================================================================
+    def DerivativeDefined(self):
+        return self.__DerivativeDefined
+    def Derivative(self,index = None):
+        """ Take derivative. If index is specified, take derivative wrt Index'th entry"""
+        
+        if not self.DerivativeDefined():
+            raise ValueError("Derivative of function is not defined")
+            
+            
+        F1 = self.__F1
+        F2 = self.__F2
+        Op = self.__Op
+        
+        if Op == Call :
+            Out = F1.Derivative(index = index)(F2)*F2.Derivative(index = index)
+            
+        if Op == Mul:
+            Out = F1.Derivative(index = index)*F2 + F2.Derivative(index = index) * F1
+            
+        if Op == Add:
+            Out = F1.Derivative(index = index) + F2.Derivative(index = index)
+            
+        if Op == Sub:
+            Out = F1.Derivative(index = index) - F2.Derivative(index = index)
+            
+        if Op == TrueDiv:
+            Out = F1.Derivative(index = index)/F2 - (F1*F2.Derivative(index = index))/(F2**2)
+            
+        if Op == Pow :
+            if type(F2)==Constant:
+                N = F2.Number()
+                
+                Out = N*F1**(N-1)
+                
+            else:
+                Out = (F1**F2)*(F2.Derivative(index = index)*Log(F1)+F1.Derivative(index = index)*F2/F1)
+            
+        return Out
+    
+    
+# =============================================================================
+#     Numeric methods:
+# =============================================================================
+    def __call__(self,Arg):
+
+        if not self.IsCompiled():
+            self.Compile()
+            
+        if isinstance(Arg,Number) or type(Arg)==ndarray:
+            return self.__Function(Arg)
+        
+        elif type(Arg)==Constant:
+            return Constant(self.__Function(Arg.Number()))
+        
+        elif Function in Arg.__bases__:
+            Out = Function(self,Arg,Call)
+
+            return Out
+        else:
+            raise ValueError("Argument must be number or Function")
+            
+    def __mul__(self,Arg):
+        if isinstance(Arg,Number):
+            Arg = Constant(Arg)        
+
+        if type(Arg)==Constant:  
+            if Arg.Number()==1:
+                return self
+                
+            if Arg.Number()==0:
+                return Arg
+            
+            if type(self)==Constant:
+                Nout = Arg.Number()*self.Number()
+                return Constant(Nout)
+            
+            else:
+                pass
+            
+        if type(self)==Constant:
+            if self.Number()==1:
+                return Arg
+            if self.Number()==0:
+                return self
+            
+                            
+                
+        if not self.IsCompiled():
+             self.Compile()
+            
+        Out = Function(self,Arg,Mul)
+        return Out            
+
+                
+    def __rmul__(self,Arg):
+        return self*Arg
+    
+    def __add__(self,Arg):
+        if isinstance(Arg,Number):
+            Arg = Constant(Arg)
+            
+        if type(Arg)==Constant:
+            if Arg.Number()==0:
+                return self
+            
+            elif type(self)==Constant:
+                return Constant(self.Number()+Arg.Number())
+        
+        if type(self)==Constant:
+            if self.Number()==0:
+                return Arg
+            
+
+            
+        if not self.IsCompiled():
+            self.Compile()
+                        
+        Out = Function(self,Arg,Add)
+        return Out 
+
+    def __radd__(self,Arg):
+        return self + Arg
+    
+    def __sub__(self,Arg):
+        if isinstance(Arg,Number):
+            Arg = Constant(Arg)
+            
+        if type(Arg)==Constant:
+            if Arg.Number()==0:
+                return self
+            
+            elif type(self)==Constant:
+                return Constant(self.Number()-Arg.Number())
+        
+        if type(self)==Constant:
+            if self.Number()==0:
+                return -1*Arg
+        
+        if not self.IsCompiled():
+            self.Compile()
+               
+        Out = Function(self,Arg,Sub)
+        return Out 
+    
+    def __rsub__(self,Arg):
+        return self - Arg    
+
+
+    
+    def __truediv__(self,Arg):
+        if isinstance(Arg,Number):
+            Arg = Constant(Arg)        
+
+        if type(Arg)==Constant:  
+            if Arg.Number()==1:
+                return self
+                
+            if Arg.Number()==0:
+                raise ZeroDivisionError("division by zero")
+            
+            if type(self)==Constant:
+                Nout = self.Number()/Arg.Number()
+                return Constant(Nout)
+            
+            else:
+                pass
+            
+        if type(self)==Constant:
+            if self.Number()==0:
+                return self
+            
+                            
+                
+        if not self.IsCompiled():
+             self.Compile()
+            
+        Out = Function(self,Arg,TrueDiv)
+        
+        
+        return Out 
+    
+    def __rtruediv__(self,Arg):
+        if not self.IsCompiled():
+            self.Compile()
+            
+        if isinstance(Arg,Number):
+            Arg = Constant(Arg)
+
+                
+        return Arg / self 
+                
+
+        
+    def __pow__(self,Arg):
+        if isinstance(Arg,Number):
+            Arg = Constant(Arg)
+            
+        if type(Arg)==Constant:
+            if Arg.Number()==0:
+                return Constant(1)
+            
+            elif type(self)==Constant:
+                return Constant(self.Number()**Arg.Number())
+        
+        elif type(self)==Constant:
+            if self.Number()==1:
+                return self
+          
+        if not self.IsCompiled():
+            self.Compile()
+                            
+        Out = Function(self,Arg,Pow)
+        return Out 
+    
+    def __rpow__(self,Arg):
+        if not self.IsCompiled():
+            self.Compile()
+            
+        if isinstance(Arg,Number):
+            Arg = Constant(Arg)
+
+                
+        Out = Arg**self
+        return Out
+    
+
+        
+class AtomicFunction(Function):
+    
+    def __init__(self,f):
+    
+        self._Function__F1 = f
+        self._Function__F2 = None
+        self._Function__Op = None
+
+        self._Function__Depth = 1
+        
+        self._Function__Atomic = True 
+        
+        self._Function__Compiled = True
+        
+        self._Function__Function = f
+        
+        self.__bases__=(AtomicFunction,Function)
+ 
+        self._Function__StringMethod = None
+        self._Function__StringMethodDefined = False
+        
+        self.__Derivative = None
+        
+        self._Function__DerivativeDefined = False
+        
+        
+        
+    def SetStringMethod(self,StringMethod):
+        self._Function__StringMethod = StringMethod
+        self._Function__StringMethodDefined = True
+        
+    def Derivative(self,index=None):
+        """Derivative. If speicified, take wrt entry Index"""
+
+        if self._Function__DerivativeDefined:
+            return self.__Derivative
+        else:
+            raise ValueError(f"Derivative of function f(x)={self} not specified. Use SetDerivative to define the derivative")
+            
+    def SetDerivative(self,Value):
+        self.__Derivative = Value
+        self._Function__DerivativeDefined = True
+        
+    
+    
+    def Compile(self):
+        raise ValueError("Atomic functions are already compiled")
+    
+class Constant(AtomicFunction):
+    """ Constant function f(x) = const. """
+    def __init__(self,N):
+        self.__bases__=(Constant,AtomicFunction,Function)        
+        def f(x):
+            return N
+        
+        self.__Number = N
+        
+
+        
+        AtomicFunction.__init__(self,f)
+ 
+        def SM(x):
+            return f"{N}"
+        self.SetStringMethod(SM)
+        
+        self._Function__DerivativeDefined=True
+        self._AtomicFunction__Derivative = None
+        
+        
+        # Specify derivative 
+  
+    def Derivative(self,index=None):
+        return Constant(0)
+    
+    
+    def Number(self):
+        return self.__Number
+
+   
+class Entry(AtomicFunction):
+    """Picks nth entry from input vector: f(x) = x[n]. 
+    X can be multidimensional
+    """
+    def __init__(self,Index,Name=None):
+        self.__bases__=(Entry,AtomicFunction,Function)        
+
+        if not (type(Index)==int or type(Index)==tuple):
+            raise ValueError("Argument must be tuple of integers or integer")
+            
+        def f(x):
+            return x[Index]
+        
+        AtomicFunction.__init__(self,f)
+               
+        if type(Index)==int:
+            Index = (Index,)
+        self.__Index = Index
+        
+        if Name==None:
+                
+            def SM(x):
+                String = f"{Index[0]}"
+    
+                for n in Index[1:]:
+                    String+=f",{n}"
+                return f"x[{String}]"
+        else:
+            def SM(x):
+                return Name
+            
+        self.SetStringMethod(SM)
+                
+        self._Function__DerivativeDefined=True 
+        
+    def Derivative(self,index=None):
+        
+        if index ==None:
+            raise ValueError("index must be specified, when taking the derivative of Entry class")
+        
+        if type(index)==int:
+            index = (index,)
+        if index == self.__Index:
+            return Constant(1)
+            
+        else:
+            return Constant(0)
+        
+class Identity(AtomicFunction):
+    def __init__(self):
+        self.__bases__=(Entry,AtomicFunction,Function)        
+
+        def f(x):
+            return x
+        
+        AtomicFunction.__init__(self,f)
+
+        
+        def SM(x):
+            return f"{x}"
+        
+        self.SetStringMethod(SM)
+                
+        self._Function__DerivativeDefined=True 
+        
+    def Derivative(self,index=None):
+        
+        return Constant(1)
+
+
+class Power(AtomicFunction):
+    """ Power function f(x) = x^p """
+    def __init__(self,power):
+        if not isinstance(power,Number):
+            raise ValueError("Power must be a number")
+    
+        self.__bases__=(Entry,AtomicFunction,Function)        
+        self.__power = power
+        def f(x):
+            return x**power
+        
+        AtomicFunction.__init__(self,f)
+        
+        def SM(x):
+            return  f"{x}^{power}"
+            
+        self.SetStringMethod(SM)
+        
+        self._Function__DerivativeDefined=True
+            
+    def Derivative(self,index=None):
+        return Constant(self.power())*Power(self.power()-1)
+            
+    def power(self):
+        return self.__power
+    
+class Exponential(AtomicFunction):
+    """ Exponential function f(x) = a^x """
+    
+    def __init__(self,exponent):
+        if not isinstance(exponent,Number):
+            raise ValueError("exponent must be a number")
+        self.__bases__=(Entry,AtomicFunction,Function)        
+        self.__exponent = exponent
+        def f(x):
+            return exponent ** x 
+        
+        AtomicFunction.__init__(self,f)
+        
+        def SM(x):
+            return  f"{exponent}^{x}"
+            
+        self.SetStringMethod(SM)
+        
+        self._Function__DerivativeDefined=True
+        
+    def Derivative(self,index=None):
+        return log(self.exponent())*self
+    
+    def exponent(self):
+        return self.__exponent
+
+    
+# =============================================================================
+# Cleanup rules 
+# =============================================================================
+
+def cleanup(F):
+#    if not Module == funcions:
+#    if not (Module.__name__ == "__main__" or Module.__name__ == "functions"):
+#    
+    # =============================================================================
+    # Simplification of atomic functions
+    # =============================================================================
+
+    if type(F)==Power:
+        if F.power()==1:
+            return Identity()
+
+        
+    A = F._Function__F1
+    B = F._Function__F2
+    Op = F.Operation()
+    
+
+        
+    if type(A)==Constant and type(B) == Constant:
+        return Constant(Op.Operation()(A.Number(),B.Number()))
+    
+    if type(A)==Identity and Op == Call:
+        return B
+    
+    
+    if type(B)==Identity and Op == Call:
+        return A
+    
+    if Op == TrueDiv:
+        return A*(B**-1)
+    
+    if Op == Pow and type(B)==Constant:
+        return Power(B.Number())(A)
+    
+    
+    if Op == Pow and type(A)==Constant:
+        return Exponential(A.Number())(B)
+    
+    
+    if type(A)==Constant:
+        if A.Number()==0:
+            if Op == Add:
+                return B
+            if Op == Mul:
+                return A
+            if Op == Pow:
+                return Constant(1)
+            if Op == TrueDiv:
+                return Constant(inf)
+        elif A.Number()==1:
+
+            if Op==Mul:
+                return B
+            if Op==Pow:
+                return B
+            
+    
+
+            
+    return F
+    
+Id= Identity()
