@@ -1,6 +1,6 @@
 # Function module
 
-Abstract representation of functions.
-Easy to do differentiations, and operations on functions. 
+Module for representing functions as objects. The functions can be added, multiplied, combined (i.e. combining f(x) and g(x) to the function f(g(x))), and differentiated. 
 
-Functions defined recursively, using atomic functions as building blocks (Const, Log, Sin, Cos, Exp), and binary operations + - * ^ \circ as glue.
+Functions are defined recursively, using atomic functions as building blocks. The building blocks are the constant function, Log, Sin, Cos, and Exp. The building blocks are combined using the binary operations + - * ^ and the operation (f(x),g(x))-> f(g(x)).
+
